@@ -16,9 +16,10 @@ def check_and_get_model_type(model_path, trust_remote_code, **model_init_kwargs)
     print("model type is ", config.model_type)
     if config.model_type not in Quant_CAUSAL_LM_MODEL_MAP.keys():
         raise TypeError(f"{config.model_type} isn't supported yet.")
+    return config.model_type
 
 class AutoQuantForCausalLM:
-    
+     
     def __init__(self):
         raise EnvironmentError(
             "you must instantiate AutoQuantForCausalLLM with from_pretrained func."
@@ -26,7 +27,7 @@ class AutoQuantForCausalLM:
     @staticmethod
     def from_pretrained(
         self,
-        model_path,
+        model_path,   
         torch_dtype="auto",
         trust_remote_code=True,
         safetensors=True,

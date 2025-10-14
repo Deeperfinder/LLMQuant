@@ -57,6 +57,7 @@ class BaseModelForCausalLM(nn.Module):
             model_init_kwargs["low_cpu_mem_usage"] = low_cpu_mem_usage
         if model_init_kwargs.get("use_cache") is None:
             model_init_kwargs["use_cache"] = use_cache
+        # torch.nn.modules
         model = target_cls.from_pretrained(
             model_weights_path,
             trust_remote_code=trust_remote_code,

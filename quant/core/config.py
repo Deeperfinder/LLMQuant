@@ -2,7 +2,7 @@
 import os
 import json
 from typing import Dict, Optional
-from dataclass import dataclass,field
+from dataclasses import dataclass,field
 from transformers.utils.hub import PushToHubMixin
 
 """
@@ -13,7 +13,7 @@ from transformers.utils.hub import PushToHubMixin
 """
 
 @dataclass
-class QuantConfig:
+class QuantConfig(PushToHubMixin):# 专门用于将模型、配置或分词器等对象一键上传到 Hugging Face Hub，QuantConfig自动获得上传到 Hub 的能力
     # * 对于 list, dict, set 等可变类型，默认值必须用 field(default_factory=...)
     # * 对于 int, str, bool, None 等不可变类型，可以直接赋值，但用 field(default=...) 也无妨（更统一）
     quant_method: str = field(default = "awq")
