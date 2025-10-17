@@ -37,6 +37,18 @@ def apply_scale(module: nn.Module, scales_list: List, input_feat_dict: dict):
             scale_ln_fcs(prev_op, layers, scales)
         else:
             raise NotImplementedError(f"prev_op {type(prev_op)} not supported yet!")
+    # apply the scaling to input feat if given; prepare it for clipping
+    if input_feat_dict is not None:
+        for layer_name in layer_names:
+            # Skip the modules that are not quantized
+            if layer_name in input_feat_dict:
+                inp = input_feat_dict[layer_name]
+                inp.div_(scales.view(1, -1).to(inp.device))
+     
+    prev_op.cpu()
+    for layer in layers:
+        layer.cpu()
+    scales.cpu()
 
 @torch.no_grad()
 def scale_ln_fcs(ln: nn.Linear, fcs: List[nn.Linear], scales: torch.Tensor):
