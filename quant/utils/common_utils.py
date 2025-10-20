@@ -35,7 +35,7 @@ def get_op_name(module, op):
     raise ValueError(f"Cannot find op {op} in module {module}")
 
 def set_op_name(layer, name, new_module):
-    levels = name.split(".")
+    levels = name.split(".") # self_attn.q_proj(torch.nn.Module) => self_attn.q_proj(q_linear)
     if len(levels) > 1:
         mod_ = layer
         for l_idx in range(len(levels) - 1):
@@ -46,7 +46,7 @@ def set_op_name(layer, name, new_module):
         setattr(mod_, levels[-1], new_module)
     else:
         setattr(layer, name, new_module)
-        
+
 def append_str_prefix(x, prefix):
     if isinstance(x, str):
         return prefix +x
