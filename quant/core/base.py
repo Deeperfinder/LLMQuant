@@ -167,8 +167,41 @@ class BaseModelForCausalLM(nn.Module):
             config.max_seq_len = max_seq_len     
         return model_weights_path, config, quant_config       
 
-    def save_quantized(self, save_dir):
+    def save_quantized(
+        self,
+        save_dir,
+        safetensors = True, # Whether to save the model as safetensors or torch files
+        shard_size= "5GB", # The shard size for sharding large models into multiple chunks
+    ):
+        save_dir = save_dir[:-1] if save_dir[-1] == "/" else save_dir
+
+        # Save model
+        class EmptyModule(nn.Module):
+            def __init__(self):
+                super(EmptyModule, self).__init__()
+
+            def forward(self, x):
+                return x
+
+        # Save model and config files with empty state dict
+        self.model.config.quantization_config = self.quant_config.to_transformers_dict()
+        self.model.generation_config.do_sample = True
+        self.model.save_pretrained(save_dir, state_dict=EmptyModule().state_dict())
+
+        # Remove empty state dict
+        default_paths = [
+            f"{save_dir}/model.safetensors",
+            f"{save_dir}/pytorch_model.bin",
+        ]
+        for path in default_paths:
+            if os.path.exists(path):
+                os.remove(path)
+
         save_torch_state_dict(
-            state_dict = self.model.state_dict(),
-            save_directory = save_dir,
+            state_dict=self.model.state_dict(),
+            save_directory=save_dir,
+            max_shard_size=shard_size,
+            safe_serialization=safetensors,
+            force_contiguous=True,
+            shared_tensors_to_discard=self.model._tied_weights_keys,
         )
