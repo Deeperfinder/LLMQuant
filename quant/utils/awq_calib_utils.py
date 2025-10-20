@@ -2,7 +2,8 @@ import torch
 import logging
 from typing import List, Union
 from datasets import load_dataset
-
+# modelscope load datasets
+from modelscope import MsDatasets
 
 # 通用的处理数据集的办法
 def get_calib_dataset(
@@ -15,7 +16,14 @@ def get_calib_dataset(
 ):
     if isinstance(data, str):
         if data == "pileval":
-            dataset = load_dataset("mit-han-lab/pile-val-backup", split="validation", revision="main")
+            # use modelscope
+            dataset = MsDatasets(
+                "mit-han-lab/pile-val-backup",
+                subset_name = "default",
+                split="validation"
+            )
+            # use hg
+            #dataset = load_dataset("mit-han-lab/pile-val-backup", split="validation", revision="main")
         else:
             dataset = load_dataset(data, split=split)
 
