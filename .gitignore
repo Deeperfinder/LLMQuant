@@ -1,2 +1,2 @@
-*.quant.egg-info
-.__pycache__
+quant.egg-info
+__pycache__/
