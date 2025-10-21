@@ -1,7 +1,9 @@
 from quant.core.api import AutoQuantForCausalLM
 from transformers import AutoTokenizer
-model_path = "Qwen/Qwen2.5-14B-Instruct"
-quant_path = "Qwen2.5-14B-Instruct-awq"
+
+
+model_path = "/cfs_cloud_code/fiinnxu/models/modelscope/Qwen2.5-7B-Instruct"
+quant_path = "/cfs_cloud_code/fiinnxu/models/modelscope/Qwen2.5-7B-Instruct-awq"
 
 quant_config = {"quant_method" : "awq",
                 "w_bit" : 4,
@@ -9,7 +11,7 @@ quant_config = {"quant_method" : "awq",
                 "q_group_size" : 128}
 
 # 类名调用，静态方法. 
-model = AutoQuantForCausalLM.from_pretrained(model_path)
+model = AutoQuantForCausalLM.from_pretrained(model_path=model_path)
 tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
 
 model.quantize(tokenizer, quant_config=quant_config)

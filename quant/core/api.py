@@ -1,11 +1,12 @@
+import os
 import torch
+import logging
 from transformers import AutoConfig
 from quant.nn_models import *
+from .base import BaseModelForCausalLM
 
 Quant_CAUSAL_LM_MODEL_MAP = {
     "qwen2": Qwen2ModelForCausalLM,
-    "llama": LLamaModelForCausalLM,
-    "llama4": Llama4ModelForCausalLM,
 }
 
 def check_and_get_model_type(model_path, trust_remote_code, **model_init_kwargs):
@@ -16,7 +17,10 @@ def check_and_get_model_type(model_path, trust_remote_code, **model_init_kwargs)
     print("model type is ", config.model_type)
     if config.model_type not in Quant_CAUSAL_LM_MODEL_MAP.keys():
         raise TypeError(f"{config.model_type} isn't supported yet.")
-    return config.model_type
+    model_type = config.model_type
+    if model_path[:8] == "deepseek" and model_type == "qwen2":
+        model_type = "qwen2_distilled_r1"
+    return model_type
 
 class AutoQuantForCausalLM:
      
@@ -24,18 +28,18 @@ class AutoQuantForCausalLM:
         raise EnvironmentError(
             "you must instantiate AutoQuantForCausalLLM with from_pretrained func."
         )
-    @staticmethod
+    @classmethod
     def from_pretrained(
         self,
-        model_path,   
+        model_path, # 只有这一个入参，其他都取默认值
         torch_dtype="auto",
         trust_remote_code=True,
         safetensors=True,
         device_map=None,
         low_cpu_mem_usage=True,
         use_cache=False,
-        **model_init_kwargs,
-    ):
+        **model_init_kwargs, # 传递额外的模型初始化参数
+    ) -> BaseModelForCausalLM:
         model_type = check_and_get_model_type(
             model_path, trust_remote_code, **model_init_kwargs
         )

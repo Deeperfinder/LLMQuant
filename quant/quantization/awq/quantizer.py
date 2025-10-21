@@ -1,5 +1,6 @@
 
 import inspect
+import transformers
 import time
 import torch
 import functools
@@ -22,7 +23,7 @@ from quant.utils.common_utils import (
     clear_memory
 )
 
-class AWQQuantizer(BaseQuantizer):
+class AwqQuantizer(BaseQuantizer):
     def __init__(
         self,
         modelforCausalLM, # 各模型的模型类比如Qwen2ModelForCausalLM，它的from_pretained返回的model
@@ -82,18 +83,40 @@ class AWQQuantizer(BaseQuantizer):
             common_device = next(self.target_modules[i].parameters()).device # next为获取该module的第一个参数
             if common_device is None or str(common_device) == "cpu":
                 if torch.cuda.is_available():
-                    best_device = "cuda" + str( i % torch.cuda.device_count())
+                    best_device = "cuda:" + str( i % torch.cuda.device_count())
                 else:
                     best_device = get_best_device()
                 
                 self.target_modules[i] = self.target_modules[i].to(best_device)
                 common_device = next(self.target_modules[i].parameters()).device
-            
+            if self.module_kwargs.get("position_ids") is not None:
+                self.module_kwargs["position_ids"] = self.module_kwargs[
+                    "position_ids"
+                ].to(common_device)
+
+            if self.module_kwargs.get("attention_mask") is not None:
+                self.module_kwargs["attention_mask"] = self.module_kwargs[
+                    "attention_mask"
+                ].to(common_device)
+
             # 把第0个decoder layer的输入传到GPU、best device
             self.inps = self.inps.to(common_device)
+            # 把emb table传到GPU、best device
+            # 目的：减少内存占用，避免重复计算。
+            # 副作用：量化时需要显式确保 rotary_embed 和设备同步。
+            # 如果transformers 4.45.0后, rotary_embed 是全局的，而某些层被移动到其他设备，会导致 设备不匹配错误，所以每个layer都需要显式移动rotary embed到指定设备
+            if (transformers.__version__ >= "4.48.0"
+                and self.module_kwargs.get('attention_mask') is None):
+                self.module_kwargs['attention_mask'] = None
             # 把emb table 传到GPU 、 best device
             self.awq_model.move_embed(self.model, common_device)
-            
+            for k, v in self.module_kwargs.items():
+                # position embeddings found in tuple
+                if isinstance(v, tuple):
+                    self.module_kwargs[k] = tuple(
+                        item.to(common_device) if isinstance(item, (torch.Tensor, nn.Module)) 
+                        else item for item in v
+                    )
             # 返回第i个decoder layer上所有linear的name和torch.nn.Linear的映射字典
             # {'self_attn.q_proj': Linear(in_features=5120, out_features=5120, bias=True), 
             # 'self_attn.k_proj': Linear(in_features=5120, out_features=1024, bias=True), 
@@ -327,7 +350,7 @@ class AWQQuantizer(BaseQuantizer):
                 )
             )
         # 返回的self.inps为当前入参layer的input
-        self.inps = self.inps.to(next(layer.parameters()).device) # 同步GPU的位置，防止multi-gpu
+        self.inps = self.inps.to(next(layer.parameters()).device)  # in case multi-gpu
         module_kwargs = self._sanitize_kwargs(self.module_kwargs, layer)
         self.inps = self._module_forward(self.inps, layer, module_kwargs)
         
@@ -411,6 +434,13 @@ class AWQQuantizer(BaseQuantizer):
         module2inspect=None,
         kwargs={},
     ):
+        if module2inspect is None:
+            assert len(layers) == 1
+            module2inspect = layers[0]
+
+        if "use_cache" in kwargs:
+            kwargs.pop("use_cache")
+
         # Put x on the right device
         inp = inp.to(next(module2inspect.parameters()).device)
         # [STEP 1] 计算[out channels, in channels]下，每列的weight 按照group size大小先归一化， 然后再求得均值
@@ -498,6 +528,8 @@ class AWQQuantizer(BaseQuantizer):
         step_size = max(1, input_feat.shape[1] // n_sample_token)
         input_feat = input_feat[:, ::step_size] # [1, n_sample_token, ngroup, groupsize]
         
+        w = w.reshape(org_w_shape[0], 1, -1, group_size)
+
         oc_batch_size = 256 if org_w_shape[0] % 256 ==0 else 64
         assert org_w_shape[0] % oc_batch_size == 0
         w_all = w
@@ -508,13 +540,13 @@ class AWQQuantizer(BaseQuantizer):
             # 保存clip 前后每个group的最大值
             org_max_val = w.abs().amax(dim=-1, keepdim=True)
             best_max_val = org_max_val.clone()
-            min_errs = torch.ones_like(org_max_val)
+            min_errs = torch.ones_like(org_max_val)* 1e9
             input_feat = input_feat.to(w.device)
             # groudtruth, WX
             org_out = (input_feat * w).sum(dim=-1)
 
             # gridsearch clip位置，得到数据的最大最小阈值，然后截断，求得Q(W) X
-            for i_s in range([int(max_shrink * n_grid)]):
+            for i_s in range(int(max_shrink * n_grid)):
                 max_val = org_max_val * (1 - i_s / n_grid)
                 min_val = -max_val
                 cur_w = torch.clamp(w, min_val, max_val)
@@ -616,7 +648,7 @@ class AWQQuantizer(BaseQuantizer):
         if best_ratio == -1:
             raise Exception(f"Failed to find best scale for {module2inspect}")
         
-        assert torch.isnan(best_scales).sum == 0, best_scales
+        assert torch.isnan(best_scales).sum() == 0, best_scales
         return best_scales.detach().cpu()
     
     @torch.no_grad()
