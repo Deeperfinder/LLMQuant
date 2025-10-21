@@ -2,11 +2,11 @@ import os
 import torch
 import transformers
 
-from torch import nn
-from transformer import (
-    PretrainedModel,
+import torch.nn as nn
+from transformers import (
+    AutoConfig,
+    PreTrainedModel,
     PretrainedConfig,
-    AutoConfig
 )
 from huggingface_hub import snapshot_download, save_torch_state_dict
 from .config import QuantConfig
@@ -28,7 +28,7 @@ class BaseModelForCausalLM(nn.Module):
                  config,       # The config of the model
                  quant_config):
         super().__init__()
-        self.model : PretrainedModel = model
+        self.model : PreTrainedModel = model
         self.model_type : str= model_type
         self.is_quantized : bool = is_quantized
         self.config : PretrainedConfig = config
@@ -39,12 +39,12 @@ class BaseModelForCausalLM(nn.Module):
         self,
         model_path,
         model_type,
-        torch_dtype="auto",
-        trust_remote_code=True,
-        safetensors=True,
-        device_map=None,
-        low_cpu_mem_usage=True,
-        use_cache=False,
+        torch_dtype = torch.float16,
+        trust_remote_code = True,
+        safetensors = True,
+        device_map = "auto",
+        low_cpu_mem_usage = True,
+        use_cache = False,
         **model_init_kwargs,
     ):
         model_weights_path, config, quant_config = self._load_config(
