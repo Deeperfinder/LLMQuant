@@ -70,7 +70,7 @@ class AWQLinear_GEMM(LinearBase):
                 device=dev,
             ),
         )
-        self.register_scales(
+        self.register_buffer(
             "scales",
             torch.zeros(
                 in_features // self.group_size, out_features,

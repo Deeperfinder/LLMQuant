@@ -38,8 +38,9 @@ class QuantConfig(PushToHubMixin):# 专门用于将模型、配置或分词器�
     @classmethod
     def from_pretrained(cls, save_dir, **kwargs):
         resolved_config_file = os.path.join(save_dir, cls.config_file_name)
-        with open(resolved_config_file, "r") as f:
-            loaded_config = json.load(f.read())
+        print(f"resolved_config_file:{resolved_config_file}")
+        with open(resolved_config_file, "r", encoding="utf-8") as f:
+            loaded_config = json.loads(f.read())
         
         quant_config = loaded_config.get("quantization_config")
         if quant_config is not None:
