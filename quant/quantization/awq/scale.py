@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from typing import Tuple, List
-from quant.utils.common_utils import get_op_name
+from quant.utils.common_utils import get_op_by_name
 
 from transformers.models.llama.modeling_llama import LlamaRMSNorm
 
@@ -11,7 +11,7 @@ allowed_norms = [nn.LayerNorm, LlamaRMSNorm]
 def apply_clip(module: nn.Module, clip_list: Tuple[str, torch.Tensor]):
     best_device = next(module.parameters()).device # get_best_device()
     for name, max_val in clip_list:
-        layer: nn.Linear = get_op_name(module, name)
+        layer: nn.Linear = get_op_by_name(module, name)
         layer.to(best_device)
         max_val = max_val.to(layer.weight.device)
         org_shape = layer.weight.shape
@@ -28,8 +28,8 @@ def apply_scale(module: nn.Module, scales_list: List, input_feat_dict: dict):
     # layer_names: module.mlp.gate_proj, module.mlp.up_proj, module.mlp.down_proj, module.self_attn.o_proj
     # {'self_attn.q_proj': Linear(in_features=5120, out_features=5120, bias=True)} 
     for prev_op_name, layer_names, scales in scales_list:
-        prev_op = get_op_name(module, prev_op_name)
-        layers = [get_op_name(module, name) for name in layer_names]
+        prev_op = get_op_by_name(module, prev_op_name)
+        layers = [get_op_by_name(module, name) for name in layer_names]
         
         prev_op.to(best_device)
         scales.to(best_device)

@@ -27,6 +27,12 @@ def clear_memory(weight=None):
     gc.collect()
     torch.cuda.empty_cache()
 
+def get_op_by_name(module, op_name):
+    for name, m in module.named_modules():
+        if name == op_name:
+            return m
+    raise ValueError(f"Cannot find op {op_name} in module {module}")
+
 def get_op_name(module, op):
     # get the name of the op relative to the module
     for name, m in module.named_modules():
