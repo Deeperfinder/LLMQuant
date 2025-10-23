@@ -625,6 +625,7 @@ class AwqQuantizer(BaseQuantizer):
             scales[torch.isnan(scales)] = 1
 
             # Q(W * s) * s^-1: 对应论文提到的fuse to previous op, 和smoothquant的处理一样
+            # 引入量化误差
             for fc in linears2scale:
                 fc.weight.mul_(scales_view)
                 fc.weight.data = (

@@ -51,7 +51,7 @@ class QuantConfig(PushToHubMixin):# 专门用于将模型、配置或分词器�
             quant_config = cls()
         return quant_config
     
-    def to_transformer_dict(self):
+    def to_transformers_dict(self):
         return {
             "quant_method": self.quant_method,
             "zero_point": self.zero_point,

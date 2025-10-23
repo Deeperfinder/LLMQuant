@@ -11,7 +11,7 @@ def get_best_device():
 def get_named_linears(module):
     return {name: m for name, m in module.named_modules() if isinstance(m, nn.Linear)}
 
-def exculde_layers_to_not_quantize(linear_layers, modules_to_not_quantize):
+def exclude_layers_to_not_quantize(linear_layers, modules_to_not_quantize):
     if modules_to_not_quantize is None:
         return linear_layers
     filter_layers = {}

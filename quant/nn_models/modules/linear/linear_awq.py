@@ -113,6 +113,7 @@ class AWQLinear_GEMM(LinearBase):
         # scales.shape = [5120//128, 5120]
         # zeros.shape=[5120/128,5120]
         # scale_zeros.shape=[5120/128,5120]
+        # 量化步骤
         intweight = []
         for idx in range(awq_linear.in_features):
             intweight.append( # group_size 个元素共享一个zeros

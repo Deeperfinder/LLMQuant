@@ -17,5 +17,5 @@ tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
 model.quantize(tokenizer, quant_config=quant_config)
 model.save_quantized(quant_path)
 
-tokenizer.save_quantized(quant_path)
+tokenizer.save_pretrained(quant_path)
 print(f"Model is quantized and saved at {quant_path}")
