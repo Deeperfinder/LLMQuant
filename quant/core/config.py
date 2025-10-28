@@ -24,7 +24,7 @@ class QuantConfig(PushToHubMixin):# 专门用于将模型、配置或分词器�
     modules_to_not_convert: list = field(default_factory=lambda: ["lm_head"])
     fp8_static_quant: bool = field(default = False)
     per_tensor: bool = field(default = True)
-    kv_cache_quant: list = field(default_factory=list)
+    kv_cache_quant_layers: list = field(default_factory=list) # when enabled, quantize_output=true
 
 
     @classmethod
@@ -60,6 +60,6 @@ class QuantConfig(PushToHubMixin):# 专门用于将模型、配置或分词器�
             "modules_to_not_convert": self.modules_to_not_convert,
             "fp8_static_quant": self.fp8_static_quant,
             "per_tensor": self.per_tensor,
-            "kv_cache_quant": self.kv_cache_quant
+            "kv_cache_quant": self.kv_cache_quant_layers
         }
     
