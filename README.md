@@ -1,7 +1,3 @@
-当然可以！以下是完整的 **中英文双语 README**，开头提供语言切换选项，中文版本为主内容，并在顶部清晰链接到英文版本（适合 GitHub 项目）。
-
----
-
 # 🌐 语言选择 / Language
 
 - [English Version (英文版)](quant/README_EN.md)
