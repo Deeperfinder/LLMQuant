@@ -19,7 +19,7 @@ from quant.utils.common_utils import (
     set_op_name,
     get_best_device,
     get_named_linears,
-    exculde_layers_to_not_quantize,
+    exclude_layers_to_not_quantize,
     clear_memory
 )
 
@@ -127,7 +127,7 @@ class AwqQuantizer(BaseQuantizer):
             # 'mlp.down_proj': Linear(in_features=13824, out_features=5120, bias=False)}
             named_linear = get_named_linears(self.target_modules[i])
 
-            named_linear = exculde_layers_to_not_quantize(
+            named_linear = exclude_layers_to_not_quantize(
                 named_linear, self.modules_to_not_convert
             )
             # calib, 返回每个decoderlayer中每个linear的input activations,送去apply scale后再送去决定clip
