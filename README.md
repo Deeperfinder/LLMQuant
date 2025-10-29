@@ -1,14 +1,7 @@
-# 🌐 语言选择 / Language
-
-- [English Version (英文版)](quant/README_EN.md)
-- **中文版（当前）**
-
----
-
 # 🚀 面向大语言模型的高级量化工具包
 
 这是一个高性能、可扩展的大语言模型（LLM）量化框架，支持 **AWQ**、**SmoothQuant** 和 **FP8** 量化，并提供灵活的量化粒度选项。  
-
+- [English Version (英文版)](quant/README_EN.md)
 ---
 
 ## ✨ 功能概览
@@ -24,18 +17,21 @@
 | • Per-channel（权重按输出通道缩放） | ✅ 已支持 |
 | • Per-group（按固定分组缩放，如 group size=128） | ✅ 已支持 |
 | • Per-token（激活值按 token 动态缩放） | ✅ 已支持 |
+| • Per-token-group（激活值按单个token的group_size大小） | ✅ 已支持 |
 | **FP8 能力** | |
-| • 静态 FP8 量化（离线校准） | ✅ 已支持 |
-| • 动态 FP8 量化（运行时计算缩放因子） | ✅ 已支持 |
-| • 多卡 FP8 推理与训练 | ✅ 已支持 |
+| • 静态 FP8 量化 | ✅ 已支持 |
+| • 动态 FP8 量化 | ✅ 已支持 |
+| • 多卡 FP8 量化 | ✅ 已支持 |
 | **高性能 Kernel（开发中）** | |
-| • Triton: `per_token_group_quant` | 🟨 开发中 |
+| • Triton: `per_token_group_quant` | ✅ 已支持 |
 | • Triton: `w8a8_block_fp8_matmul` | 🟨 开发中 |
 | • CUTE: `per_token_group_quant_8bit` | 🟨 开发中 |
 | • CUTE: `fp8_gemm_cute` | 🟨 开发中 |
 | • CUDA: `per_token_group_quant_8bit`（手写优化） | 🟨 开发中 |
 
 ---
+## Benchmark
+
 
 ## 🚀 快速开始
 

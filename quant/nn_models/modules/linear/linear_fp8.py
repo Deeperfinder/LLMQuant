@@ -2,6 +2,8 @@ import transformers
 import torch
 from typing import Tuple, Optional
 from .linear_base import LinearBase
+import triton
+import triton.language as tl
 
 def per_tensor_quantize(tensor: torch.Tensor) -> Tuple[torch.Tensor, float]:
     finfo = torch.finfo(torch.float_e4m3fn)
@@ -31,6 +33,119 @@ def per_channel_quantize(tensor: torch.Tensor) -> Tuple[torch.Tensor, float]:
     qweight = (tensor / scale).clamp(min=finfo.min, max=finfo.max)
     scale = scale.float()
     return qweight, scale
+
+def per_token_group_quant_fp8(x: torch.Tensor,
+                              group_size: int, 
+                              dtype: torch.float8_e4m3fn,
+                              eps=1e-10) -> Tuple[torch.Tensor, float]:
+    assert x.shape[-1] % group_size == 0,("The last dimension of 'x' cannot be divided by group_size!")
+    assert x.is_contiguous(),("The input tensor must be contiguous!")
+
+    finfo = torch.finfo(dtype)
+    fp8_min = finfo.min
+    fp8_max = finfo.max
+
+    # x[M, N] ==> x_[M*N // group_size , group_size]
+    x_ = x.reshape(x.numel() // group_size, group_size)
+    # max 返回最大值和其索引[value, index]
+    amax = x_.abs().max(dim=-1, keepdim=True)[0].clamp(min=eps).to(torch.float32)
+    x_s = amax / fp8_max
+
+    # x_[M*N, group_size] / x_s[M*N, 1]
+    x_q = (x_ / x_s).clamp(min=fp8_min, max=fp8_max).to(dtype)
+    # x_q : [M * N, group_size] => [M, group_size *C]
+    x_q = x_q.reshape(x.shape)
+    # x_s : [M*N // group_size, 1] ==> [M, N // group_size] 
+    x_s = x_s.reshape(x.shape[:-1] + (x.shape[-1]//group_size,))
+
+    return x_q, x_s
+
+def _per_token_group_quant_8bit_raw(x: torch.Tensor, 
+                                    group_size: int,
+                                    eps: float = 1e-10,
+                                    dtype: torch.dtype = torch.float8_e4m3fnm
+                                    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+        Function use triton to perform per-token-group quantization on an input tensor 'x'.
+        Args:
+            x: The input tenosr with ndim >= 2.
+            group_size: The group size used for quantization.
+            eps: The minimum to avoid dividing zero.
+            dtype: The dype of output tensor.
+
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor]: The quantized tensor and the scaling factor for quantization.
+    """
+    assert (
+        x.shape[-1] % group_size == 0
+    ), "the last dimension of `x` cannot be divisible by `group_size`"
+    assert x.is_contiguous(), "`x` is not contiguous"
+
+    info = torch.finfo(dtype)
+    bit8_max = info.max
+    bit8_min = info.min
+
+    x_q = torch.empty_like(x, device=x.device, dtype=dtype)
+    x_s = torch.empty(x.shape[:-1] + (x.shape[-1] // group_size,),
+                      device=x.device,
+                      dtype=torch.float32)
+    M = x.numel() // group_size
+    N = group_size
+    BLOCK = triton.next_power_of_2(N)
+    num_warps = min(max(BLOCK//256, 1), 8)
+    num_stages = 1
+    _per_token_group_quant_8bit[(M,)](
+        x,
+        x_q,
+        x_s,
+        group_size,
+        N,
+        eps,
+        bit8_min=bit8_min,
+        bit8_max=bit8_max,
+        BLOCK=BLOCK,
+        num_warps=num_warps,
+        num_stages=num_stages,
+    )
+    return x_q, x_s
+
+@triton.jit
+def _per_token_group_quant_8bit(
+    y_ptr,
+    y_q_ptr,
+    y_s_ptr,
+    y_stride,
+    N,
+    eps,
+    bit8_min,
+    bit8_max,
+    BLOCK:tl.constexpr,
+):
+    """
+        A triton-accelerated function to perform per-token-group quantization on a tensor.
+        This function converts the tensor values into float8 values.
+        notes:
+            一个block的大小为y_stride == group_size
+    """
+    # Map the program id to the row of X and Y it should compute
+    g_id = tl.program_id(0)
+    y_ptr += g_id * y_stride
+    y_q_ptr += g_id * y_stride
+    y_s_ptr += g_id
+
+    cols = tl.arange(0, BLOCK) #N <= BLOCK
+    mask = cols < N
+
+    # 加载目标数据
+    y = tl.load(y_ptr + cols, mask=mask, other=0.0).to(tl.float32)
+    # Quant
+    _absmax = tl.maximum(tl.max(tl.abs(y)), eps)
+    y_s = _absmax / bit8_max
+    y_s_inv = 1.0 / y_s
+    y_q = tl.clamp(y*y_s_inv, bit8_min, bit8_max).to(y_q_ptr.dtype.element_ty)
+
+    tl.store(y_q_ptr + cols, y_q, mask=mask)
+    tl.store(y_s_ptr, y_s)
 
 def static_per_tensor_quantize(tensor: torch.Tensor, static_scale: float) -> torch.Tensor:
     finfo = torch.finfo(torch.float8_e4m3fn)
