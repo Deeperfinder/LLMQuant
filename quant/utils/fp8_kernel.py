@@ -3,7 +3,7 @@ import triton
 import triton.language as tl
 from typing import List
 
-def per_tensor_quantize(tensor: torch.Tensor) -> Tuple[torch.Tensor, float]:
+def per_tensor_quantize(tensor: torch.Tensor) -> tuple[torch.Tensor, float]:
     finfo = torch.finfo(torch.float_e4m3fn)
     if tensor.numel() ==0:
         min_val, max_val = (
@@ -18,7 +18,7 @@ def per_tensor_quantize(tensor: torch.Tensor) -> Tuple[torch.Tensor, float]:
     scale = scale.float()
     return qweight, scale
 
-def per_channel_quantize(tensor: torch.Tensor) -> Tuple[torch.Tensor, float]:
+def per_channel_quantize(tensor: torch.Tensor) -> tuple[torch.Tensor, float]:
     finfo = torch.finfo(torch.float8_e4m3fn)
     if tensor.numel() == 0:
         # Deal with empty tensors (triggered by empty MoE experts)
@@ -35,7 +35,7 @@ def per_channel_quantize(tensor: torch.Tensor) -> Tuple[torch.Tensor, float]:
 def per_token_group_quant_fp8(x: torch.Tensor,
                               group_size: int, 
                               dtype: torch.float8_e4m3fn,
-                              eps=1e-10) -> Tuple[torch.Tensor, float]:
+                              eps=1e-10) -> tuple[torch.Tensor, float]:
     assert x.shape[-1] % group_size == 0,("The last dimension of 'x' cannot be divided by group_size!")
     assert x.is_contiguous(),("The input tensor must be contiguous!")
 
@@ -58,11 +58,11 @@ def per_token_group_quant_fp8(x: torch.Tensor,
 
     return x_q, x_s
 
-def _per_token_group_quant_8bit_raw(x: torch.Tensor, 
-                                    group_size: int,
-                                    eps: float = 1e-10,
-                                    dtype: torch.dtype = torch.float8_e4m3fnm
-                                    ) -> Tuple[torch.Tensor, torch.Tensor]:
+def triton_per_token_group_quant_8bit(x: torch.Tensor, 
+                                        group_size: int, 
+                                        dtype: torch.float8_e4m3fn,
+                                        eps: float = 1e-10,
+                                    ) -> tuple[torch.Tensor, torch.Tensor]:
     """
         Function use triton to perform per-token-group quantization on an input tensor 'x'.
         Args:
@@ -72,13 +72,12 @@ def _per_token_group_quant_8bit_raw(x: torch.Tensor,
             dtype: The dype of output tensor.
 
         Returns:
-            Tuple[torch.Tensor, torch.Tensor]: The quantized tensor and the scaling factor for quantization.
+            tuple[torch.Tensor, torch.Tensor]: The quantized tensor and the scaling factor for quantization.
     """
     assert (
         x.shape[-1] % group_size == 0
     ), "the last dimension of `x` cannot be divisible by `group_size`"
     assert x.is_contiguous(), "`x` is not contiguous"
-
     info = torch.finfo(dtype)
     bit8_max = info.max
     bit8_min = info.min
