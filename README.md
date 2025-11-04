@@ -24,13 +24,16 @@
 | • 多卡 FP8 量化 | ✅ 已支持 |
 | **高性能 Kernel（开发中）** | |
 | • Triton: `per_token_group_quant` | ✅ 已支持 |
-| • Triton: `w8a8_block_fp8_matmul` | 🟨 开发中 |
+| • Triton: `w8a8_block_fp8_matmul` | ✅ 已支持 |
 | • CUTE: `per_token_group_quant_8bit` | 🟨 开发中 |
 | • CUTE: `fp8_gemm_cute` | 🟨 开发中 |
-| • CUDA: `per_token_group_quant_8bit`（手写优化） | 🟨 开发中 |
+| • CUDA: `per_token_group_quant_8bit`（手写优化） | ✅ 已支持 |
 
 ---
 ## Benchmark
+使用`test/test_per_token_group_quant.py`测试不同shape下，fp8 per_group_quant的性能，如下图所示。
+在长输入的情况下， cuda手写的kernel相较于triton kernel会有30%左右的性能收益。
+![alt text](quant/utils/performance_comparison.jpg)
 
 
 ## 🚀 快速开始
@@ -88,6 +91,7 @@ python awq_quantize.py
 - [**AWQ: 面向 LLM 压缩与加速的激活感知权重量化**](https://github.com/mit-han-lab/llm-awq)  
 - [**SmoothQuant: 高精度高效的 LLM 后训练量化**](https://github.com/mit-han-lab/smoothquant)  
 - [**NVIDIA FP8 Transformer Engine**](https://docs.nvidia.com/deeplearning/transformer-engine/user-guide/)
+- [**SGLang**](https://github.com/sgl-project/sglang/tree/main/python)
 
 ---
 
